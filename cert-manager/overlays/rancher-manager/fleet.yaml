@@ -10,4 +10,4 @@ spec:
   targetRestrictions:
     - clusterSelector:
         matchLabels:
-          name: rancher-manager
+          management.cattle.io/cluster-display-name: local

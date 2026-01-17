@@ -10,4 +10,4 @@ spec:
   targetRestrictions:
     - clusterSelector:
         matchLabels:
-          name: poc-apps
+          management.cattle.io/cluster-display-name: poc-apps

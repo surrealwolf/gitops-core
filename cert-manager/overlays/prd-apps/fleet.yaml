@@ -10,4 +10,4 @@ spec:
   targetRestrictions:
     - clusterSelector:
         matchLabels:
-          name: prd-apps
+          management.cattle.io/cluster-display-name: prd-apps
