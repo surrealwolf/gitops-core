@@ -4,7 +4,7 @@ metadata:
   name: gitops-core
   namespace: fleet-default
 spec:
-  repo: https://github.com/surrealwolf/gitops-core
+  repo: https://github.com/DataKnifeAI/gitops-core
   branch: main
   paths:
     - cert-manager/overlays/rancher-manager
