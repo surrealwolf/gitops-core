@@ -229,7 +229,7 @@ kubectl get certificates -n cert-manager -w
 
 ### Getting Help
 
-- **[docs/cert-management-cloudflare-letsencrypt.md](../docs/cert-management-cloudflare-letsencrypt.md)** — Rate limits, Cloudflare, cluster-specific identifiers, Fleet, RKE2, troubleshooting
+- **[docs/cert-management-cloudflare-letsencrypt.md](../docs/cert-management-cloudflare-letsencrypt.md)** — Rate limits, Cloudflare, rate-limit refill strategy, Fleet, RKE2, troubleshooting
 - Check `base/README.md` for detailed configuration documentation
 - Check `secrets/cert-manager/README.md` for DNS provider setup
 - Review cert-manager logs: `kubectl logs -n cert-manager deployment/cert-manager`

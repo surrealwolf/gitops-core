@@ -27,7 +27,7 @@ Let's Encrypt enforces [rate limits](https://letsencrypt.org/docs/rate-limits/).
 
 **Reference:** [New Certificates per Exact Set of Identifiers](https://letsencrypt.org/docs/rate-limits/#new-certificates-per-exact-set-of-identifiers)
 
-**Workaround:** Change the set by adding a cluster-specific identifier. **Do not** use subdomains under your wildcard (e.g. `cert-<cluster>.dataknife.net` when `*.dataknife.net` is in the request)—Let's Encrypt rejects them as redundant. Use **node IPs** in `spec.ipAddresses` so each cluster has a different set. New orders with the new set are not considered renewals and still count against other limits, but they avoid this one.
+**Workaround:** (1) **Wait for refill** — capacity refills at 1 certificate every 34 hours; space out orders. (2) **Consolidate** to one Certificate per cluster for the same set (e.g. one .net cert, reuse its secret) to reduce orders. (3) **Different domain** — add an identifier from a domain you control that is *not* under your wildcard (Let's Encrypt rejects subdomains as redundant). (4) **Public IPs** in `spec.ipAddresses` — private/RFC1918 IPs are rejected; only public IPs work.
 
 ---
 
@@ -93,30 +93,18 @@ The ClusterIssuer references this via `apiTokenSecretRef` (name `cloudflare-api-
 
 ---
 
-## Cluster-Specific Identifiers (Avoiding "5 per Exact Set")
+## Rate-Limit Refill Strategy (Exact Set)
 
-When the same wildcard (e.g. `*.dataknife.net`, `dataknife.net`) is issued on many clusters, the "exact set" is identical and you quickly hit the 5-per-7-days limit.
+When the same wildcard (e.g. `*.dataknife.net`, `dataknife.net`) is issued on many clusters, the "exact set" is identical and you hit the 5-per-7-days limit.
 
-**Do not use subdomains under the wildcard** (e.g. `cert-<cluster>.dataknife.net`): Let's Encrypt rejects them with *"Domain name 'X' is redundant with a wildcard domain in the same request. Remove one or the other."*
+**Identifiers that don't work:**
+- **Subdomains under the wildcard** (e.g. `cert-<cluster>.dataknife.net`): rejected as *"redundant with a wildcard domain in the same request"*.
+- **Private/RFC1918 node IPs** in `spec.ipAddresses` (e.g. 192.168.x.x, 10.x.x.x): rejected as *"IP address is in a reserved address block: [RFC1918]: Private-Use"*. Only public IPs are accepted.
 
-**Approach: use node IPs in `spec.ipAddresses`.** Each cluster has different node IPs, so the set becomes unique per cluster, e.g.:
+**Approach: use the base set and rely on refill.** Use only `[*.dataknife.net, dataknife.net]` (no extra `dnsNames` or `ipAddresses`). The limit refills at **1 certificate every 34 hours**. With 4 clusters × 2 certs (wildcard + default-ingress) = 8 orders for the same set:
 
-- rancher-manager: `[*.dataknife.net, dataknife.net, 192.168.14.100, 192.168.14.101, 192.168.14.102]`
-- nprd-apps: `[*.dataknife.net, dataknife.net, 192.168.14.110, …]`
-- etc.
-
-Add the same `ipAddresses` (that cluster’s node InternalIPs) to both:
-
-- `wildcard-dataknife-net` (in `cert-manager`)
-- `wildcard-dataknife-net-default-ingress` (in `kube-system`)
-
-so each cluster has one unique set for the .net certs. Two orders per cluster for that set (2 &lt; 5) is fine. Get node IPs with:
-
-```bash
-kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
-```
-
-If node IPs change (e.g. node replacement), update the Certificate and renew.
+- **Space out:** After hitting the limit, wait for refill (1 per 34h). cert-manager will retry; orders will succeed as capacity returns. Expect ~8 × 34h ≈ 11+ days to clear a full 8-order backlog after the 5-per-7-days window.
+- **Consolidate (optional):** Use one Certificate per cluster for .net (e.g. only `wildcard-dataknife-net-default-ingress` in `kube-system`) and reuse its secret elsewhere. That reduces to 4 orders per set (4 &lt; 5).
 
 ---
 
@@ -196,12 +184,17 @@ On RKE2, the controller does **not** read `ingress-nginx-controller`, so that de
 ### "Too many certificates already issued for exact set of identifiers"
 
 - You’ve hit the [5 per exact set per 7 days](https://letsencrypt.org/docs/rate-limits/#new-certificates-per-exact-set-of-identifiers) limit.
-- Options: wait for refill (1 cert every 34 hours), or change the set (e.g. add node IPs in `spec.ipAddresses`; do not add subdomains under the wildcard—they are rejected as redundant).
+- Options: wait for refill (1 cert every 34 hours), consolidate to 1 Certificate per cluster for that set, or change the set using a different domain (not under the wildcard) or public IPs only (private/RFC1918 IPs are rejected).
 
 ### "Domain name 'X' is redundant with a wildcard domain in the same request"
 
 - You added a subdomain (e.g. `cert-rancher-manager.dataknife.net`) while `*.dataknife.net` is in the same certificate. Let's Encrypt rejects it.
-- **Fix:** Remove the subdomain from `dnsNames` and use `spec.ipAddresses` (e.g. node IPs) instead to get a unique set per cluster.
+- **Fix:** Remove the subdomain from `dnsNames`. To get a unique set, use a different domain (not under the wildcard) or public IPs in `spec.ipAddresses`; private/RFC1918 IPs are rejected.
+
+### "IP address is in a reserved address block: [RFC1918]: Private-Use"
+
+- You added private/RFC1918 IPs (e.g. 192.168.x.x, 10.x.x.x) to `spec.ipAddresses`. Let's Encrypt will not issue for them.
+- **Fix:** Remove `ipAddresses` or use only public IPs. For private clusters, rely on the base `dnsNames` and the rate-limit refill strategy (1 cert every 34 hours).
 
 ### Cloudflare: "Could not route to /client/v4/zones/..." or Invalid Object
 

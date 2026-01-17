@@ -31,9 +31,5 @@ spec:
   dnsNames:
     - "*.dataknife.net"
     - "dataknife.net"
-  ipAddresses:  # node IPs: unique set per cluster (avoids "5 per exact set" rate limit; subdomains under *.dataknife.net rejected as redundant)
-    - 192.168.14.100
-    - 192.168.14.101
-    - 192.168.14.102
   # Certificate will be valid for 90 days (Let's Encrypt standard)
   # cert-manager will automatically renew 30 days before expiration
