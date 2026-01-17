@@ -223,12 +223,13 @@ kubectl get certificates -n cert-manager -w
 ### Common Issues
 
 - **DNS provider secret not found**: Ensure secret exists in `cert-manager` namespace with correct name
-- **DNS provider API permissions**: Verify credentials have permission to create/edit TXT records
-- **Rate limiting**: Let's Encrypt limits to 50 certs/week per registered domain
+- **DNS provider API permissions**: Verify credentials have permission to create/edit TXT records; Cloudflare needs **Zone – Read** and **Zone – DNS – Edit**
+- **Rate limiting**: See [Let's Encrypt rate limits](https://letsencrypt.org/docs/rate-limits/); especially [5 per exact set per 7 days](https://letsencrypt.org/docs/rate-limits/#new-certificates-per-exact-set-of-identifiers) when reusing the same identifiers across clusters
 - **DNS propagation delays**: DNS-01 challenges may take a few minutes
 
 ### Getting Help
 
+- **[docs/cert-management-cloudflare-letsencrypt.md](../docs/cert-management-cloudflare-letsencrypt.md)** — Rate limits, Cloudflare, cluster-specific identifiers, Fleet, RKE2, troubleshooting
 - Check `base/README.md` for detailed configuration documentation
 - Check `secrets/cert-manager/README.md` for DNS provider setup
 - Review cert-manager logs: `kubectl logs -n cert-manager deployment/cert-manager`
@@ -238,5 +239,9 @@ kubectl get certificates -n cert-manager -w
 
 - [cert-manager Documentation](https://cert-manager.io/docs/)
 - [Let's Encrypt Documentation](https://letsencrypt.org/docs/)
+- [Let's Encrypt Rate Limits](https://letsencrypt.org/docs/rate-limits/):
+  - [New Certificates per Exact Set of Identifiers](https://letsencrypt.org/docs/rate-limits/#new-certificates-per-exact-set-of-identifiers)
+  - [New Certificates per Registered Domain](https://letsencrypt.org/docs/rate-limits/#new-certificates-per-registered-domain)
+  - [New Orders per Account](https://letsencrypt.org/docs/rate-limits/#new-orders-per-account)
 - [ACME DNS-01 Challenge](https://cert-manager.io/docs/configuration/acme/dns01/)
-- [DNS Provider Configuration](https://cert-manager.io/docs/configuration/acme/dns01/)
+- [DNS Provider Configuration (Cloudflare)](https://cert-manager.io/docs/configuration/acme/dns01/cloudflare/)
