@@ -2,17 +2,16 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Note: Do NOT set namespace here. Resources have explicit namespaces:
-# - ClusterIssuer: cluster-scoped
-# - wildcard certs: cert-manager
-# - default-ingress cert + configmap: kube-system (avoids conflict with wildcard-dataknife-net secretName)
+# - ClusterIssuer: cluster-scoped (for reference, certificates are synced from rancher-manager)
+# - configmap: kube-system (references secret synced from rancher-manager)
+#
+# Certificates are NOT requested on this cluster. TLS secrets are synced from
+# rancher-manager cluster via scripts/sync-certs-from-rancher-manager.sh
+# This reduces Let's Encrypt certificate requests (1 source cluster vs 4).
 resources:
-  # Override ClusterIssuer with DNS provider configuration
+  # ClusterIssuer (for reference, not used for new certificate requests)
   - clusterissuer.yaml
-  # Certificate resources (copied from base for Fleet path resolution)
-  - certificate-wildcard-dataknife-net.yaml
-  - certificate-wildcard-dataknife-ai.yaml
-  # Default ingress certificate (for nginx-ingress default SSL cert)
-  - certificate-default-ingress-net.yaml
+  # ConfigMap for nginx-ingress default SSL cert (references synced secret)
   - configmap-default-cert.yaml
 
 commonLabels:

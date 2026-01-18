@@ -5,10 +5,14 @@ kind: Kustomization
 # - ClusterIssuer: cluster-scoped
 # - wildcard certs: cert-manager
 # - default-ingress cert + configmap: kube-system (avoids conflict with wildcard-dataknife-net secretName)
+#
+# This is the ONLY cluster that requests certificates from Let's Encrypt.
+# TLS secrets are synced to downstream clusters via scripts/sync-certs-from-rancher-manager.sh
+# This reduces Let's Encrypt certificate requests from 8 (4 clusters × 2 certs) to just 2.
 resources:
   # Override ClusterIssuer with DNS provider configuration
   - clusterissuer.yaml
-  # Certificate resources (copied from base for Fleet path resolution)
+  # Certificate resources (only cluster requesting from Let's Encrypt)
   - certificate-wildcard-dataknife-net.yaml
   - certificate-wildcard-dataknife-ai.yaml
   # Default ingress certificate (for nginx-ingress default SSL cert)

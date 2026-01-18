@@ -4,6 +4,42 @@ This document captures what we learned running cert-manager with Cloudflare (DNS
 
 ---
 
+## Certificate Management Strategy
+
+**Centralized Certificate Issuance**: To minimize Let's Encrypt certificate requests and avoid rate limits, we use a centralized approach:
+
+- **Only `rancher-manager` cluster** requests certificates from Let's Encrypt
+- **Downstream clusters** (`nprd-apps`, `poc-apps`, `prd-apps`) receive TLS secrets synced from `rancher-manager`
+- **Certificate sync** is performed via `scripts/sync-certs-from-rancher-manager.sh`
+
+This reduces certificate requests from **8 orders** (4 clusters × 2 certificates) to just **2 orders** (wildcard-dataknife-net, wildcard-dataknife-ai), staying well within Let's Encrypt's "5 per exact set" rate limit.
+
+**Certificates issued on rancher-manager:**
+- `cert-manager/wildcard-dataknife-net-tls`
+- `cert-manager/wildcard-dataknife-ai-tls`
+- `kube-system/wildcard-dataknife-net-tls` (for nginx default SSL)
+
+**Syncing certificates:**
+
+The sync script (`scripts/sync-certs-from-rancher-manager.sh`) copies secrets from `rancher-manager` to downstream clusters, preserving namespace and secret data.
+
+```bash
+# Sync to all downstream clusters
+./scripts/sync-certs-from-rancher-manager.sh
+
+# Sync to specific cluster
+./scripts/sync-certs-from-rancher-manager.sh nprd-apps
+```
+
+**Automation options:**
+- **Manual**: Run the script when certificates are renewed (cert-manager renews 30 days before expiration on `rancher-manager`)
+- **CronJob**: Deploy a CronJob in `rancher-manager` cluster that runs the sync script periodically (e.g., daily). The Job would need kubectl with access to all cluster contexts (kubeconfig stored as a Secret).
+- **External automation**: CI/CD pipeline or external scheduler that runs the script after detecting certificate renewal.
+
+**Note:** Since cert-manager renews certificates 30 days before expiration, syncing daily or weekly is sufficient to keep downstream clusters updated.
+
+---
+
 ## Overview
 
 - **cert-manager**: Kubernetes operator for TLS certificates
