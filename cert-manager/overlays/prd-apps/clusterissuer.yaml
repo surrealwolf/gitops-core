@@ -54,3 +54,4 @@ spec:
         dnsNames:
         - "*.dataknife.net"
         - "dataknife.net"
+        - "hc.dataknife.ai"
