@@ -113,6 +113,22 @@ This means:
 - **No need to specify `secretName`** in Ingress resources for dataknife.net domains
 - The certificate is automatically created in the `kube-system` namespace for nginx-ingress
 
+**Important:** RKE2's nginx-ingress controller requires `--default-ssl-certificate` to be set as a **command-line flag** (not just in ConfigMap). Per [GitHub issue #1408](https://github.com/rancher/rke/issues/1408), this must be configured in the DaemonSet arguments.
+
+**One-time setup per cluster:**
+```bash
+kubectl patch daemonset -n kube-system rke2-ingress-nginx-controller \
+  --type=json \
+  -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--default-ssl-certificate=kube-system/wildcard-dataknife-net-tls"}]'
+```
+
+After applying the patch, restart the nginx-ingress pods:
+```bash
+kubectl delete pod -n kube-system -l app=rke2-ingress-nginx-controller
+```
+
+**Note:** Fleet/Kustomize patches are configured in each overlay's `kustomization.yaml`, but they may not be able to patch RKE2-managed DaemonSets. If the automated patch fails, apply the patch manually using the command above.
+
 **Example Ingress without TLS specification (uses default certificate):**
 ```yaml
 apiVersion: networking.k8s.io/v1

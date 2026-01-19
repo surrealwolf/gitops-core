@@ -14,6 +14,20 @@ resources:
   # ConfigMap for nginx-ingress default SSL cert (references synced secret)
   - configmap-default-cert.yaml
 
+# Patch nginx-ingress DaemonSet to add --default-ssl-certificate flag
+# This is required for RKE2 (see GitHub issue #1408)
+# The flag must be set as a command-line argument, not just in ConfigMap
+# Note: Fleet/Kustomize may not be able to patch RKE2-managed DaemonSets.
+# If patch fails, apply manually: see README.md for instructions
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: DaemonSet
+      name: rke2-ingress-nginx-controller
+      namespace: kube-system
+    path: ../base/daemonset-nginx-ingress-patch.yaml
+
 commonLabels:
   app: cert-manager
   managed-by: gitops

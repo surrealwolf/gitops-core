@@ -1,0 +1,14 @@
+# Patch to add --default-ssl-certificate flag to RKE2 nginx-ingress DaemonSet
+#
+# RKE2's nginx-ingress controller requires --default-ssl-certificate as a
+# command-line flag (not just ConfigMap). Per GitHub issue #1408:
+# https://github.com/rancher/rke/issues/1408
+#
+# This patch adds the flag to ensure the Let's Encrypt wildcard certificate
+# is used as the default SSL certificate for Ingress resources without
+# explicit TLS configuration.
+#
+# Note: Uses patchesJson6902 target via kustomization.yaml
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --default-ssl-certificate=kube-system/wildcard-dataknife-net-tls
