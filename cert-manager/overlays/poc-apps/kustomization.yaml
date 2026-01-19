@@ -13,8 +13,8 @@ resources:
   - clusterissuer.yaml
   # ConfigMap for nginx-ingress default SSL cert (references synced secret)
   - configmap-default-cert.yaml
-  # Fleet Bundle targeting configuration
-  - fleet.yaml
+  # Note: Fleet Bundle targeting is handled by GitRepo spec.targets
+  # The fleet.yaml Bundle resource is not needed - Fleet auto-creates bundles from GitRepos
 
 # Patch nginx-ingress DaemonSet to add --default-ssl-certificate flag
 # This is required for RKE2 (see GitHub issue #1408)
