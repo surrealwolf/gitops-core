@@ -343,6 +343,58 @@ For detailed instructions, see the [Rancher documentation](https://ranchermanage
 - Update Rancher agents on downstream clusters
 - Force update Fleet clusters in Rancher UI
 
+### Fixing Fleet Agent TLS Issues After Certificate Update
+
+After updating Rancher's certificate, Fleet agents on downstream clusters may fail to register with the management cluster due to TLS certificate verification errors. This manifests as:
+
+- Fleet bundles stuck in `WaitApplied` state
+- Fleet agent logs showing: `tls: failed to verify certificate: x509: failed to load system roots and no roots provided`
+- Cluster registrations failing to complete
+
+**Root Cause:**
+The Fleet agent container has `readOnlyRootFilesystem: true`, preventing access to system CA certificate stores. If the `apiServerCA` field in the `fleet-agent-bootstrap` secret is empty, the agent cannot verify the Rancher server's TLS certificate.
+
+**Solution:**
+
+1. **Download the CA certificate** (if using Let's Encrypt):
+   ```bash
+   curl -s https://letsencrypt.org/certs/isrgrootx1.pem | base64 -w 0 > /tmp/isrg-root-x1-base64.txt
+   ```
+
+2. **Update the Fleet agent bootstrap secret** on each downstream cluster:
+   ```bash
+   # For each downstream cluster (nprd-apps, poc-apps, prd-apps, etc.)
+   kubectl --context <cluster-name> patch secret -n cattle-fleet-system fleet-agent-bootstrap \
+     --type='json' -p="[{\"op\": \"replace\", \"path\": \"/data/apiServerCA\", \"value\": \"$(cat /tmp/isrg-root-x1-base64.txt)\"}]"
+   ```
+
+3. **Restart the Fleet agent** to pick up the new CA certificate:
+   ```bash
+   kubectl --context <cluster-name> delete pod -n cattle-fleet-system -l app=fleet-agent
+   ```
+
+4. **Verify the fix**:
+   ```bash
+   # Check Fleet agent logs (should no longer show TLS errors)
+   kubectl --context <cluster-name> logs -n cattle-fleet-system -l app=fleet-agent --tail=20
+   
+   # Check Fleet bundle status (should transition from WaitApplied to Ready)
+   kubectl --context rancher-manager get bundle -A | grep gitops-core-cert-manager
+   ```
+
+**For custom CA certificates:**
+If Rancher uses a custom CA certificate (not Let's Encrypt), extract the root CA certificate from your certificate chain and base64 encode it:
+```bash
+# Extract CA from certificate chain
+echo | openssl s_client -connect rancher.dataknife.net:443 -showcerts 2>/dev/null | \
+  sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | \
+  tail -35 | base64 -w 0 > /tmp/custom-ca-base64.txt
+
+# Then use the same patch command above with the custom CA
+```
+
+**Note:** This fix is required whenever the Rancher server's certificate changes and the Fleet agent bootstrap secret doesn't include the appropriate CA certificate.
+
 ---
 
 ## References
